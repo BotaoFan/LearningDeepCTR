@@ -90,7 +90,7 @@ class DeepFM(BaseEstimator, TransformerMixin):
 
             #Embedding
             self.embedding = tf.nn.embedding_lookup(self.weights['embedding_weights'], self.feat_index)
-            self.embedding = tf.
+
 
 
 
