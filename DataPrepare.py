@@ -27,7 +27,7 @@ class DataParser(object):
                 cate_dict[col] = tc
                 tc += 1
             elif col in self.cate_cols:
-                cates = df[col].unique()
+                cates = self.df[col].unique()
                 cates_count = len(cates)
                 cate_dict[col] = dict(zip(cates, range(tc, tc + cates_count)))
                 tc += cates_count
@@ -38,15 +38,15 @@ class DataParser(object):
     def parse(self):
         df_val = self.df.copy()
         df_idx = self.df.copy()
-        for col in df.columns:
+        for col in self.df.columns:
             if col in self.ignore_cols:
                 continue
             elif col in self.num_cols:
-                df_val[col] = df[col]
+                df_val[col] = self.df[col]
                 df_idx[col] = self.cate_dict[col]
             elif col in self.cate_cols:
                 df_val[col] = 1
-                df_idx[col] = df[col].map(self.cate_dict[col])
+                df_idx[col] = self.df[col].map(self.cate_dict[col])
             else:
                 raise KeyError('Column %s not in num_cols, cate_cols or ignore_cols' % col)
         return df_val, df_idx, self.cate_dict
