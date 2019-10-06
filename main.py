@@ -64,7 +64,7 @@ def _load_pred_data(cate_dict):
 if __name__ == '__main__':
     xv_train, xi_train, y_train, xv_valid, xi_valid, y_valid, feature_size, field_size, cate_dict \
         = _load_train_data()
-    xv_test, xi_test = _load_pred_data()
+    xv_test, xi_test = _load_pred_data(cate_dict)
     dfm_params = {
         'feature_size': feature_size,
         'field_size': field_size,
@@ -75,7 +75,7 @@ if __name__ == '__main__':
         "deep_layers": [32, 32, 32],
         "dropout_deep": [0.5, 0.5, 0.5, 0.5],
         "deep_layers_activation": tf.nn.relu,
-        "epoch": 30,
+        "epoch": 70,
         "batch_size": 1024,
         "learning_rate": 0.001,
         "optimizer_type": "adam",
@@ -90,7 +90,7 @@ if __name__ == '__main__':
     pred_df = pd.read_csv(config.DATA_PATH + 'test.csv')
     y_pred = dfm.predict(xi_test, xv_test)
     pred_df['target'] = y_pred
-    pred_df[['id', 'target']].to_csv(config.DATA_PATH + 'submission.csv')
+    pred_df[['id', 'target']].to_csv(config.DATA_PATH + 'submission.csv', index=False)
 
 
 
