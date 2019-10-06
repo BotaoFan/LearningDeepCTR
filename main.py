@@ -12,7 +12,7 @@ from DataPrepare import DataParser
 from DeepFM.DeepFM import DeepFM
 import config
 import warnings
-
+from eval_metrics import gini_norm
 warnings.filterwarnings('ignore')
 
 
@@ -23,7 +23,7 @@ def _preprocess(df):
     return df
 
 
-def _load_data():
+def _load_train_data():
     data_path = config.DATA_PATH
     raw_data = pd.read_csv(data_path + 'train.csv')
     raw_data = _preprocess(raw_data)
@@ -43,34 +43,54 @@ def _load_data():
     xv_test = df_val.iloc[train_index:, :].values
     xi_test = df_idx.iloc[train_index:, :].values
     y_test = y_raw_df.iloc[train_index:, :].values
-    return xv_train, xi_train, y_train, xv_test, xi_test, y_test, feature_size, field_size
+    return xv_train, xi_train, y_train, xv_test, xi_test, y_test, feature_size, field_size, cate_dict
+
+
+def _load_pred_data(cate_dict):
+    data_path = config.DATA_PATH
+    raw_data = pd.read_csv(data_path + 'test.csv')
+    raw_data = _preprocess(raw_data)
+    cols = [c for c in raw_data.columns if c not in ['id', 'target']]
+    cols = [c for c in cols if c not in config.IGNORE_COLS]
+    x_raw_df = raw_data[cols]
+    data_parse = DataParser(x_raw_df, config.NUMERIC_COLS,
+                            config.CATEGORICAL_COLS, config.IGNORE_COLS, cate_dict)
+    test_val, test_idx, cate_dict = data_parse.parse()
+    xv_test = test_val.values
+    xi_test = test_idx.values
+    return xv_test, xi_test
 
 
 if __name__ == '__main__':
-    xv_train, xi_train, y_train, xv_valid, xi_valid, y_valid, feature_size, field_size \
-        = _load_data()
+    xv_train, xi_train, y_train, xv_valid, xi_valid, y_valid, feature_size, field_size, cate_dict \
+        = _load_train_data()
+    xv_test, xi_test = _load_pred_data()
     dfm_params = {
         'feature_size': feature_size,
         'field_size': field_size,
         "use_fm": True,
         "use_deep": True,
-        "embedding_size": 8,
+        "embedding_size": 10,
         "dropout_fm": [1.0, 1.0],
         "deep_layers": [32, 32, 32],
         "dropout_deep": [0.5, 0.5, 0.5, 0.5],
         "deep_layers_activation": tf.nn.relu,
-        "epoch": 40,
+        "epoch": 30,
         "batch_size": 1024,
         "learning_rate": 0.001,
         "optimizer_type": "adam",
         "batch_norm": 1,
         "batch_norm_decay": 0.995,
         "l2_reg": 0.01,
-        "verbose": True,
+        "eval_metric": gini_norm,
+        "verbose": True
     }
     dfm = DeepFM(**dfm_params)
     dfm.fit(xi_train, xv_train, y_train, xi_valid, xv_valid, y_valid)
-    print dfm.train_result
-    print dfm.valid_result
+    pred_df = pd.read_csv(config.DATA_PATH + 'test.csv')
+    y_pred = dfm.predict(xi_test, xv_test)
+    pred_df['target'] = y_pred
+    pred_df[['id', 'target']].to_csv(config.DATA_PATH + 'submission.csv')
+
 
 

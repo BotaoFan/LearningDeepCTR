@@ -5,7 +5,7 @@ import pandas as pd
 
 
 class DataParser(object):
-    def __init__(self, df, num_cols=[], cate_cols=[], ignore_cols=[]):
+    def __init__(self, df, num_cols=[], cate_cols=[], ignore_cols=[], cate_dict=None):
         cols_ = df.columns
         cols = []
         for col in cols_:
@@ -15,7 +15,7 @@ class DataParser(object):
         self.num_cols = num_cols
         self.cate_cols = cate_cols
         self.ignore_cols = ignore_cols
-        self.cate_dict = self.generate_cate_dict()
+        self.cate_dict = self.generate_cate_dict() if cate_dict is None else cate_dict
 
     def generate_cate_dict(self):
         cate_dict = {}
