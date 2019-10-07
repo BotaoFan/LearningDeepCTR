@@ -10,6 +10,7 @@ from sklearn.metrics import make_scorer
 
 from DataPrepare import DataParser
 from DeepFM.DeepFM import DeepFM
+from DeepCrossNetwork.DeepCrossNetwork import DeepCrossNetwork
 import config
 import warnings
 from eval_metrics import gini_norm
@@ -64,18 +65,44 @@ def _load_pred_data(cate_dict):
 if __name__ == '__main__':
     xv_train, xi_train, y_train, xv_valid, xi_valid, y_valid, feature_size, field_size, cate_dict \
         = _load_train_data()
-    xv_test, xi_test = _load_pred_data()
-    dfm_params = {
+    xv_test, xi_test = _load_pred_data(cate_dict)
+    # --- DeepFM Model---
+    # dfm_params = {
+    #     'feature_size': feature_size,
+    #     'field_size': field_size,
+    #     "use_fm": True,
+    #     "use_deep": True,
+    #     "embedding_size": 10,
+    #     "dropout_fm": [1.0, 1.0],
+    #     "deep_layers": [32, 32, 32],
+    #     "dropout_deep": [0.5, 0.5, 0.5, 0.5],
+    #     "deep_layers_activation": tf.nn.relu,
+    #     "epoch": 1,
+    #     "batch_size": 1024,
+    #     "learning_rate": 0.001,
+    #     "optimizer_type": "adam",
+    #     "batch_norm": 1,
+    #     "batch_norm_decay": 0.995,
+    #     "l2_reg": 0.01,
+    #     "eval_metric": gini_norm,
+    #     "verbose": True
+    # }
+    # dfm = DeepFM(**dfm_params)
+    # dfm.fit(xi_train, xv_train, y_train, xi_valid, xv_valid, y_valid)
+
+    # --- Deep & Cross Network ---
+    dcn_params = {
         'feature_size': feature_size,
         'field_size': field_size,
-        "use_fm": True,
+        "use_cross": False,
         "use_deep": True,
-        "embedding_size": 10,
-        "dropout_fm": [1.0, 1.0],
+        "cross_layer_num": 2,
+        "embedding_size": 8,
+        "dropout_linear": [1.0],
         "deep_layers": [32, 32, 32],
         "dropout_deep": [0.5, 0.5, 0.5, 0.5],
         "deep_layers_activation": tf.nn.relu,
-        "epoch": 30,
+        "epoch": 1,
         "batch_size": 1024,
         "learning_rate": 0.001,
         "optimizer_type": "adam",
@@ -85,12 +112,13 @@ if __name__ == '__main__':
         "eval_metric": gini_norm,
         "verbose": True
     }
-    dfm = DeepFM(**dfm_params)
-    dfm.fit(xi_train, xv_train, y_train, xi_valid, xv_valid, y_valid)
+    dcn = DeepCrossNetwork(**dcn_params)
+    dcn.fit(xi_train, xv_train, y_train, xi_valid, xv_valid, y_valid)
+
     pred_df = pd.read_csv(config.DATA_PATH + 'test.csv')
-    y_pred = dfm.predict(xi_test, xv_test)
+    y_pred = dcn.predict(xi_test, xv_test)
     pred_df['target'] = y_pred
-    pred_df[['id', 'target']].to_csv(config.DATA_PATH + 'submission.csv')
+    pred_df[['id', 'target']].to_csv(config.DATA_PATH + 'dcn_submission.csv')
 
 
 

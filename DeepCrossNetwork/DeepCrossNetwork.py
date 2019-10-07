@@ -1,5 +1,5 @@
 #-*- coding:utf-8 -*-
-# @Time : 2019/9/26
+# @Time : 2019/10/6
 # @Author : Botao Fan
 
 import tensorflow as tf
@@ -14,29 +14,30 @@ from time import time
 from tensorflow.contrib.layers.python.layers import batch_norm as batch_norm
 
 
-class DeepFM(BaseEstimator, TransformerMixin):
+class DeepCrossNetwork(BaseEstimator, TransformerMixin):
     def __init__(self, feature_size, field_size,
-                embedding_size=8, dropout_fm=[1.0, 1.0],
-                deep_layers=[32, 32],  dropout_deep=[0.5, 0.5, 0.5],
+                embedding_size=8, cross_layer_num=3, dropout_linear=1.0,
+                deep_layers=(32, 32),  dropout_deep=(0.5, 0.5, 0.5),
                 deep_layers_activation=tf.nn.relu,
                 epoch=10, batch_size=256,
                 learning_rate=0.001, optimizer_type='adam',
                 batch_norm=0, batch_norm_decay=0.995,
                 verbose=True, random_seed=2016,
-                use_fm=True, use_deep=True,
+                use_cross=True, use_deep=True,
                 loss_type='logloss', eval_metric=roc_auc_score,
                 l2_reg=0.0, greater_is_better=True):
-        assert (use_fm or use_deep)
+        assert (use_cross or use_deep)
         assert loss_type in ['logloss', 'mse'], \
             "loss_type can be either 'logloss' for classification or 'mse' for regression"
         self.feature_size = feature_size  # M : number of all features(after one-hot)
         self.field_size = field_size  # F : number of all fields(before one-hot)
         self.embedding_size = embedding_size  # E : number of embedding
-        self.dropout_fm = dropout_fm
+        self.cross_layer_num = cross_layer_num
         self.deep_layers = deep_layers
+        self.dropout_linear = dropout_linear
         self.dropout_deep = dropout_deep
         self.deep_layers_activation = deep_layers_activation
-        self.use_fm = use_fm
+        self.use_cross = use_cross
         self.eval_metric = eval_metric
         self.use_deep = use_deep
         self.loss_type = loss_type
@@ -59,6 +60,15 @@ class DeepFM(BaseEstimator, TransformerMixin):
             tf.random_normal([self.feature_size, self.embedding_size], 0.0, 0.01), dtype=np.float32)
         weight['embedding_bias'] = tf.Variable(
             tf.random_normal([self.feature_size, 1], 0.0, 0.01), dtype=np.float32)
+        #Cross layers weights
+        cross_layer_size = self.embedding_size * self.field_size
+        glorot = np.sqrt(1.0 / cross_layer_size)
+        for i in range(self.cross_layer_num):
+            weight['cross_%d' % i] = tf.Variable(
+                tf.random_normal([cross_layer_size, 1], 0.0, glorot), dtype=np.float32)
+            weight['cross_bias_%d' % i] = tf.Variable(
+                tf.random_normal([cross_layer_size, 1], 0.0, glorot), dtype=np.float32)
+        #MLP weights
         glorot = np.sqrt(2.0 / (self.field_size * self.embedding_size + self.deep_layers[0]))
         weight['layer_0'] = tf.Variable(
             tf.random_normal([self.field_size * self.embedding_size, self.deep_layers[0]], 0.0, glorot), dtype=np.float32)
@@ -71,11 +81,11 @@ class DeepFM(BaseEstimator, TransformerMixin):
                 tf.random_normal([self.deep_layers[i-1], self.deep_layers[i]], 0.0, glorot), dtype=np.float32)
             weight['bias_%d' % i] = tf.Variable(
                 tf.random_normal([1, self.deep_layers[i]], 0.0, 0.01), dtype=np.float32)
-
-        if self.use_fm and self.use_deep:
-            lr_input_size = self.field_size + self.embedding_size + self.deep_layers[-1]
-        elif self.use_fm:
-            lr_input_size = self.field_size + self.embedding_size
+        #LR weights
+        if self.use_cross and self.use_deep:
+            lr_input_size = self.field_size + self.embedding_size * self.field_size + self.deep_layers[-1]
+        elif self.use_cross:
+            lr_input_size = self.field_size + self.embedding_size * self.field_size
         else:
             lr_input_size = self.deep_layers[-1]
 
@@ -93,7 +103,7 @@ class DeepFM(BaseEstimator, TransformerMixin):
             self.feat_idx = tf.placeholder(dtype=np.int32, shape=[None, None], name='feat_index')
             self.feat_val = tf.placeholder(dtype=np.float32, shape=[None, None], name='feat_value')
             self.label = tf.placeholder(dtype=np.float32, shape=[None, 1], name='label')
-            self.dropout_keep_fm = tf.placeholder(dtype=np.float32, shape=[None], name='dropout_keep_fm')
+            self.dropout_keep_linear = tf.placeholder(dtype=np.float32, shape=[None], name='dropout_keep_linear')
             self.dropout_keep_deep = tf.placeholder(dtype=np.float32, shape=[None], name='dropout_keep_deep')
             self.train_phase = tf.placeholder(tf.bool, name='train_phase')
             #model
@@ -103,13 +113,22 @@ class DeepFM(BaseEstimator, TransformerMixin):
             self.first_order = tf.nn.embedding_lookup(self.weight['embedding_bias'], self.feat_idx)
             # 采用reduce_sum之后，会将行求和，然后去掉aixs 2，就将[[[1],[2],[3]],[[4],[5],[6]]]变为[[1,2,3],[4,5,6]]
             self.first_order = tf.reduce_sum(tf.multiply(self.first_order, feat_val), 2)
-            self.first_order = tf.nn.dropout(self.first_order, self.dropout_keep_fm[0])
-            # second order
+            self.first_order = tf.nn.dropout(self.first_order, self.dropout_keep_linear[0])
+            # cross layer
             self.embedding = tf.multiply(self.embedding, feat_val)
-            self.sum_square = tf.square(tf.reduce_sum(self.embedding, 1))
-            self.square_sum = tf.reduce_sum(tf.square(self.embedding), 1)
-            self.second_order = 0.5 * tf.subtract(self.sum_square, self.square_sum)
-            self.second_order = tf.nn.dropout(self.second_order, self.dropout_keep_fm[1])
+            self.x0 = tf.reshape(self.embedding, [-1, self.field_size * self.embedding_size, 1])
+            self.xl = tf.reshape(self.embedding, [-1, 1, self.field_size * self.embedding_size])
+            for i in range(self.cross_layer_num):
+                self.xl = tf.add(
+                    tf.add(
+                        tf.matmul(
+                            tf.matmul(self.x0, self.xl),
+                            self.weight['cross_%d' % i]),
+                        self.weight['cross_bias_%d' % i]),
+                    tf.reshape(self.xl, [-1, self.field_size * self.embedding_size, 1]))
+                self.xl = tf.reshape(self.xl, [-1, 1, self.field_size * self.embedding_size])
+            self.xl = tf.reshape(self.xl, [-1, self.field_size * self.embedding_size])
+            self.cross_order = tf.nn.dropout(self.xl, self.dropout_keep_linear[0])
             # deep component
             self.deep_order = tf.reshape(self.embedding, [-1, self.field_size * self.embedding_size])
             self.deep_order = tf.nn.dropout(self.deep_order, self.dropout_keep_deep[0])
@@ -119,11 +138,11 @@ class DeepFM(BaseEstimator, TransformerMixin):
                 self.deep_order = tf.add(tf.matmul(self.deep_order, deep_weights), deep_bias)
                 self.deep_order = self.deep_layers_activation(self.deep_order)
                 self.deep_order = tf.nn.dropout(self.deep_order, self.dropout_keep_deep[i + 1])
-            # deepFM
-            if self.use_fm and self.use_deep:
-                self.lr_input = tf.concat([self.first_order, self.second_order, self.deep_order], 1)
-            elif self.use_fm:
-                self.lr_input = tf.concat([self.first_order, self.second_order], 1)
+            # deep & cross network
+            if self.use_cross and self.use_deep:
+                self.lr_input = tf.concat([self.first_order, self.cross_order, self.deep_order], 1)
+            elif self.use_cross:
+                self.lr_input = tf.concat([self.first_order, self.cross_order], 1)
             else:
                 self.lr_input = self.deep_order
             self.output = tf.add(tf.matmul(self.lr_input, self.weight['lr_weight']), self.weight['lr_bias'])
@@ -138,6 +157,7 @@ class DeepFM(BaseEstimator, TransformerMixin):
                 if self.use_deep:
                     for i in range(len(self.deep_layers)):
                         self.loss += self.l2_reg * tf.sqrt(tf.reduce_sum(tf.square(self.weight['layer_%d' % i]), 0))
+
             if self.optimizer_type == 'adam':
                 self.optimizer = tf.train.AdamOptimizer(
                     learning_rate=self.learning_rate, beta1=0.9, beta2=0.999, epsilon=1e-8).minimize(self.loss)
@@ -192,7 +212,7 @@ class DeepFM(BaseEstimator, TransformerMixin):
         feed_dict = {self.feat_idx: xi,
                      self.feat_val: xv,
                      self.label: y,
-                     self.dropout_keep_fm: self.dropout_fm,
+                     self.dropout_keep_linear: self.dropout_linear,
                      self.dropout_keep_deep: self.dropout_deep,
                      self.train_phase: True}
         loss, opt = self.sess.run((self.loss, self.optimizer), feed_dict=feed_dict)
@@ -239,7 +259,7 @@ class DeepFM(BaseEstimator, TransformerMixin):
             feed_dict = {self.feat_idx: xi_batch,
                          self.feat_val: xv_batch,
                          self.label: y_batch,
-                         self.dropout_keep_fm: [1.0] * len(self.dropout_fm),
+                         self.dropout_keep_linear: [1.0],
                          self.dropout_keep_deep: [1.0] * len(self.dropout_deep),
                          self.train_phase: False}
             batch_out = self.sess.run(self.output, feed_dict=feed_dict)
@@ -266,49 +286,3 @@ class DeepFM(BaseEstimator, TransformerMixin):
                             > valid_result[-4] > valid_result[-5]:
                         return True
         return False
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
