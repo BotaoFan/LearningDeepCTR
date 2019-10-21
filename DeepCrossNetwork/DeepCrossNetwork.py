@@ -184,7 +184,7 @@ class DeepCrossNetwork(BaseEstimator, TransformerMixin):
                     param_num *= dim
                 params_num += param_num
             if self.verbose > 0:
-                print ('#params: %d' % params_num)
+                print('#params: %d' % params_num)
 
     def _init_session(self):
         config = tf.ConfigProto(device_count={'gpu': 0})

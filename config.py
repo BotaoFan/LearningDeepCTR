@@ -3,7 +3,8 @@
 # @Author : Botao Fan
 
 #DATA_PATH on MacBook '/Users/fan/kaggle/competitions/porto-seguro-safe-driver-prediction/data/'
-#DATA_PATH on Mac '/Users/botaofan/PycharmProjects/data/porto-seguro-safe-driver-prediction/'\
+#DATA_PATH on Mac '/Users/botaofan/PycharmProjects/data/porto-seguro-safe-driver-prediction/'
+#Data PATH on Ubuntu '/home/ubuntu/user_space/auto_upload_20191015152508/'
 
 DATA_PATH = '/Users/botaofan/PycharmProjects/data/porto-seguro-safe-driver-prediction/'
 NUMERIC_COLS = ['ps_ind_01',

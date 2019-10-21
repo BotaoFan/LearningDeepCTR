@@ -66,7 +66,7 @@ if __name__ == '__main__':
     xv_train, xi_train, y_train, xv_valid, xi_valid, y_valid, feature_size, field_size, cate_dict \
         = _load_train_data()
     xv_test, xi_test = _load_pred_data(cate_dict)
-    # --- DeepFM Model---
+    #--- DeepFM Model---
     # dfm_params = {
     #     'feature_size': feature_size,
     #     'field_size': field_size,
@@ -77,7 +77,7 @@ if __name__ == '__main__':
     #     "deep_layers": [32, 32, 32],
     #     "dropout_deep": [0.5, 0.5, 0.5, 0.5],
     #     "deep_layers_activation": tf.nn.relu,
-    #     "epoch": 1,
+    #     "epoch": 20,
     #     "batch_size": 1024,
     #     "learning_rate": 0.001,
     #     "optimizer_type": "adam",
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     dcn_params = {
         'feature_size': feature_size,
         'field_size': field_size,
-        "use_cross": False,
+        "use_cross": True,
         "use_deep": True,
         "cross_layer_num": 2,
         "embedding_size": 8,
@@ -102,7 +102,7 @@ if __name__ == '__main__':
         "deep_layers": [32, 32, 32],
         "dropout_deep": [0.5, 0.5, 0.5, 0.5],
         "deep_layers_activation": tf.nn.relu,
-        "epoch": 1,
+        "epoch": 10,
         "batch_size": 1024,
         "learning_rate": 0.001,
         "optimizer_type": "adam",

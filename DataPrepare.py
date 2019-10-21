@@ -52,18 +52,5 @@ class DataParser(object):
         return df_val, df_idx, self.cate_dict
 
 
-if __name__=='__main__':
-    df = pd.DataFrame([[1.1, 0, 1.3, 2, 1], [2.5, 1, 3.3, 3, 2], [4, 2, 3.3, 2, 3]],
-                      columns=['n1', 'c1', 'n2', 'c2', 'ig1'])
-    print df
-    num_cols = ['n1', 'n2']
-    cate_cols = ['c1', 'c2']
-    ignore_cols = ['ig1']
-    dp = DataParser(df, num_cols, cate_cols, ignore_cols)
-    df_val, df_idx, cate_dict = dp.parse()
-    print df_val
-    print df_idx
-
-
 
 
