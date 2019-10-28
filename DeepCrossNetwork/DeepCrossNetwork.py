@@ -121,9 +121,9 @@ class DeepCrossNetwork(BaseEstimator, TransformerMixin):
             for i in range(self.cross_layer_num):
                 self.xl = tf.add(
                     tf.add(
-                        tf.matmul(
+                        tf.tensordot(
                             tf.matmul(self.x0, self.xl),
-                            self.weight['cross_%d' % i]),
+                            self.weight['cross_%d' % i], 1),
                         self.weight['cross_bias_%d' % i]),
                     tf.reshape(self.xl, [-1, self.field_size * self.embedding_size, 1]))
                 self.xl = tf.reshape(self.xl, [-1, 1, self.field_size * self.embedding_size])

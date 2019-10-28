@@ -8,7 +8,7 @@
 
 DATA_PATH = '/Users/botaofan/PycharmProjects/data/porto-seguro-safe-driver-prediction/'
 NUMERIC_COLS = ['ps_ind_01',
- 'ps_ind_03',
+                'ps_ind_03',
  'ps_ind_14',
  'ps_ind_15',
  'ps_reg_01',
