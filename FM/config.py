@@ -2,4 +2,4 @@
 # @Time : 2019/10/28
 # @Author : Botao Fan
 
-DATA_PATH = '/../../../Data/'
+DATA_PATH = './../../../Data/'
