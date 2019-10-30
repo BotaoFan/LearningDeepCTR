@@ -9,13 +9,13 @@ from time import time
 
 
 class FM(BaseEstimator):
-    def __init__(self, num_param, embedding=8, learning_rate=0.001, l2_w=0.0, l2_v=0.0, echo=10, batch_size=256, random_seed=42):
+    def __init__(self, num_param, embedding=8, learning_rate=0.001, l2_w=0.0, l2_v=0.0, epoch=10, batch_size=256, random_seed=42):
         self.mum_param = num_param
         self.embedding = embedding
         self.learning_rate = learning_rate
         self.l2_w = l2_w
         self.l2_v = l2_v
-        self.echo = echo
+        self.epoch = epoch
         self.batch_size = batch_size
         self.random_seed = random_seed
         self._init_graph()
@@ -66,7 +66,7 @@ class FM(BaseEstimator):
         return loss
 
     def fit(self, train_x, train_y, test_x=None, test_y=None):
-        for i in range(self.echo):
+        for i in range(self.epoch):
             start_time = time()
             self._shuffle_x_y(train_x, train_y)
             n = len(train_x)
