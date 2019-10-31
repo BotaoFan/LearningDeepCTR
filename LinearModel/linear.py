@@ -11,27 +11,28 @@ from sklearn.metrics import mean_absolute_error, roc_auc_score
 from time import time
 
 
-class FFM(BaseEstimator):
-    def __init__(self, param_size, field_size=2, embedding_size=8, l2_w=0, l2_v=0,
+class Linear(BaseEstimator):
+    def __init__(self, param_size, field_size=2, l2_w=0,
                  learning_rate=0.001, epoch=10, batch_size=256, random_seed=42, evaluator=roc_auc_score):
         self.param_size = param_size
         self.field_size = field_size
-        self.embedding_size = embedding_size
         self.l2_w = l2_w
-        self.l2_v = l2_v
         self.learning_rate = learning_rate
         self.epoch = epoch
         self.batch_size = batch_size
         self.random_seed = random_seed
         self.evaluator = evaluator
+
         self._init_graph()
 
     def _init_weight(self):
         weight = dict()
         weight['w_bias'] = tf.Variable(tf.random_normal([1]), dtype=tf.float32, name='weight_bias')
         weight['w_linear'] = tf.Variable(tf.random_normal([self.param_size, 1]), dtype=tf.float32, name='weight_linear')
+        '''
         weight['v'] = tf.Variable(tf.random_normal([self.field_size, self.param_size, self.embedding_size]),
                                   dtype=tf.float32, name='hidden_factors')
+        '''
         return weight
 
     def _init_graph(self):
@@ -48,6 +49,7 @@ class FFM(BaseEstimator):
                                            self.val),
                                        1, keepdims=True)
                                    )
+            '''
             self.v = []
             self.y_quadratic = None
             for i in range(self.field_size):
@@ -68,9 +70,10 @@ class FFM(BaseEstimator):
                                     tf.multiply(self.v[i], tf.reshape(self.val[:, j], [-1, 1]))
                                 ), 1, keepdims=True),
                             self.y_quadratic)
-            self.y_hat = tf.add(self.y_linear, self.y_quadratic)
+            '''
+            self.y_hat = self.y_linear
             self.error = tf.reduce_mean(tf.pow(tf.subtract(self.y, self.y_hat), 2))
-            self.l2 = self.l2_w * tf.reduce_sum(weight['w_linear']) + self.l2_v * tf.reduce_sum(weight['v'])
+            self.l2 = self.l2_w * tf.reduce_sum(weight['w_linear'])
             self.loss = self.l2 + self.error
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate,
                                                     beta1=0.9, beta2=0.999, epsilon=1e-8).minimize(self.loss)
